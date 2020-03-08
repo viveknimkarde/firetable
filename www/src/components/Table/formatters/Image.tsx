@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import { CustomCellProps } from "./withCustomCell";
 import { useDropzone } from "react-dropzone";
 import _findIndex from "lodash/findIndex";
@@ -92,8 +92,11 @@ export default function Image({
   value,
   onSubmit,
 }: CustomCellProps) {
-  const { tableState } = useFiretableContext();
-  const classes = useStyles({ rowHeight: tableState?.config?.rowHeight ?? 44 });
+  // const { tableState } = useFiretableContext();
+  const classes = useStyles({
+    rowHeight: 44,
+    // tableState?.config?.rowHeight ?? 44
+  });
 
   const [uploaderState, upload] = useUploader();
   const { progress, isLoading } = uploaderState;

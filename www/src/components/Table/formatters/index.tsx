@@ -34,49 +34,49 @@ export const getFormatter = (column: any) => {
   switch (column.type) {
     case FieldType.date:
     case FieldType.dateTime:
-      return withCustomCell(DatePicker);
+      return DatePicker;
 
     case FieldType.rating:
-      return withCustomCell(Rating);
+      return Rating;
     case FieldType.percentage:
-      return withCustomCell(Percentage);
+      return Percentage;
 
     case FieldType.color:
-      return withCustomCell(Color);
+      return Color;
 
     case FieldType.checkbox:
-      return withCustomCell(Checkbox);
+      return Checkbox;
 
     case FieldType.url:
-      return withCustomCell(Url);
+      return Url;
 
     case FieldType.action:
-      return withCustomCell(Action);
+      return Action;
 
     case FieldType.singleSelect:
     case FieldType.multiSelect:
-      return withCustomCell(MultiSelect);
+      return MultiSelect;
 
     case FieldType.image:
-      return withCustomCell(Image);
+      return Image;
 
     case FieldType.file:
-      return withCustomCell(File);
+      return File;
 
     case FieldType.longText:
-      return withCustomCell(LongText);
+      return LongText;
 
     case FieldType.json:
-      return withCustomCell(Json);
+      return Json;
 
     case FieldType.richText:
-      return withCustomCell(RichText);
+      return RichText;
 
     case FieldType.connectTable:
-      return withCustomCell(ConnectTable);
+      return ConnectTable;
 
     case FieldType.subTable:
-      return withCustomCell(SubTable);
+      return SubTable;
 
     case FieldType.shortText:
     case FieldType.email:

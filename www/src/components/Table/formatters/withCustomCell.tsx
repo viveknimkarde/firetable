@@ -38,37 +38,45 @@ export type CustomCellProps = FormatterProps<any> & {
  * Displays react-data-grid’s blue selection border when the cell is selected.
  * @param Component The formatter component to display
  */
-const withCustomCell = (Component: React.ComponentType<CustomCellProps>) => (
-  props: FormatterProps<any>
-) => {
-  const classes = useStyles();
-  const { updateCell, selectedCell } = useFiretableContext();
+function withCustomCell(Component: React.ComponentType<CustomCellProps>) {
+  return React.memo(
+    function WrappedCell(props: FormatterProps<any>) {
+      const classes = useStyles();
+      const { updateCell, selectedCell } = useFiretableContext();
 
-  const handleSubmit = (value: any) => {
-    if (updateCell)
-      updateCell(props.row.ref, props.column.key as string, value);
-  };
+      const handleSubmit = (value: any) => {
+        if (updateCell)
+          updateCell(props.row.ref, props.column.key as string, value);
+      };
 
-  const isSelected =
-    selectedCell?.row === props.rowIdx &&
-    selectedCell?.column === (props.column.key as string);
+      const isSelected =
+        selectedCell?.row === props.rowIdx &&
+        selectedCell?.column === (props.column.key as string);
 
-  return (
-    <ErrorBoundary fullScreen={false} basic>
-      <Suspense fallback={<div />}>
-        {isSelected && (
-          <div
-            className={clsx("rdg-cell-mask rdg-selected", classes.cellMask)}
-          />
-        )}
-        <Component
-          {...props}
-          value={props.row[props.column.key as string]}
-          onSubmit={handleSubmit}
-        />
-      </Suspense>
-    </ErrorBoundary>
+      const RenderedComponent = React.memo(
+        Component,
+        (prevProps, nextProps) => prevProps.value !== nextProps.value
+      );
+
+      return (
+        // <ErrorBoundary fullScreen={false} basic>
+        <>
+          {/* <Suspense fallback={<div />}> */}
+          {isSelected && (
+            <div
+              className={clsx("rdg-cell-mask rdg-selected", classes.cellMask)}
+            />
+          )}
+          <RenderedComponent {...props} onSubmit={handleSubmit} />
+          {/* </Suspense> */}
+        </>
+        // </ErrorBoundary>
+      );
+    },
+    (prevProps, nextProps) =>
+      prevProps.column !== nextProps.column ||
+      prevProps.value !== nextProps.value
   );
-};
+}
 
 export default withCustomCell;

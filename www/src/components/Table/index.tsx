@@ -1,4 +1,11 @@
-import React, { lazy, Suspense, useEffect, useRef } from "react";
+import React, {
+  lazy,
+  Suspense,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+} from "react";
 import { useDebouncedCallback } from "use-debounce";
 import _isEmpty from "lodash/isEmpty";
 
@@ -6,6 +13,7 @@ import { useTheme, Grid, CircularProgress } from "@material-ui/core";
 
 import "react-data-grid/dist/react-data-grid.css";
 import DataGrid, {
+  DataGridProps,
   Column,
   CellNavigationMode,
   ScrollPosition,
@@ -15,6 +23,7 @@ import { DraggableHeader } from "react-data-grid-addons";
 import Loading from "components/Loading";
 import SubTableBreadcrumbs, { BREADCRUMBS_HEIGHT } from "./SubTableBreadcrumbs";
 import TableHeader, { TABLE_HEADER_HEIGHT } from "./TableHeader";
+import MemoizedDataGrid from "./MemoizedDataGrid";
 import ColumnHeader from "./ColumnHeader";
 import FinalColumnHeader from "./FinalColumnHeader";
 import FinalColumn, { useFinalColumnStyles } from "./formatters/FinalColumn";
@@ -89,18 +98,33 @@ export default function Table({ collection, filters }: ITableProps) {
     tableActions?.row.more(30);
   }, 100);
 
-  const windowSize = useWindowSize();
-  if (!windowSize || !windowSize.height) return <></>;
+  const RowsContainer = useCallback(function RowsContainer_(
+    props: DataGridProps<any, "id">["RowsContainer"]
+  ) {
+    return (
+      <>
+        <div {...props} ref={rowsContainerRef} />
+        <Grid
+          container
+          className={classes.loadingContainer}
+          alignItems="center"
+          justify="center"
+        >
+          {tableState?.rows &&
+            tableState.rows.length > 0 &&
+            tableState.loadingRows && <CircularProgress disableShrink />}
+        </Grid>
+      </>
+    );
+  },
+  []);
 
-  if (!tableActions || !tableState) return <></>;
+  const columns = useMemo(() => {
+    console.log("calculate columns");
 
-  const onHeaderDrop = (dragged: any, target: any) => {
-    tableActions.column.reorder(dragged, target);
-  };
+    if (!tableState?.columns) return [];
 
-  let columns: FiretableColumn[] = [];
-  if (!tableState.loadingColumns && tableState.columns) {
-    columns = tableState.columns
+    const mappedColumns = tableState.columns
       .filter((column: any) => !column.hidden)
       .map((column: any, index) => ({
         draggable: true,
@@ -113,7 +137,8 @@ export default function Table({ collection, filters }: ITableProps) {
         ...column,
         width: column.width ? (column.width > 380 ? 380 : column.width) : 150,
       }));
-    columns.push({
+
+    const finalColumn = {
       isNew: true,
       key: "new",
       name: "Add column",
@@ -123,13 +148,60 @@ export default function Table({ collection, filters }: ITableProps) {
       cellClass: finalColumnClasses.cell,
       formatter: FinalColumn,
       editable: false,
-    });
-  }
+    };
+
+    return [...mappedColumns, finalColumn];
+  }, [tableState?.columns]);
+
+  // useEffect(() => console.log(tableActions?.column), [tableActions?.column]);
+
+  const rowGetter = useCallback((rowIdx: number) => tableState?.rows[rowIdx], [
+    tableState?.rows,
+  ]);
+
+  const onHeaderDrop = useCallback(
+    (dragged: any, target: any) => {
+      tableActions?.column?.reorder(dragged, target);
+    },
+    [tableActions?.column]
+  );
+
+  const windowSize = useWindowSize();
+
+  if (!windowSize || !windowSize.height) return <></>;
+  if (!tableActions || !tableState) return <></>;
+
+  // let columns: FiretableColumn[] = [];
+  // if (!tableState.loadingColumns && tableState.columns) {
+  //   columns = tableState.columns
+  //     .filter((column: any) => !column.hidden)
+  //     .map((column: any, index) => ({
+  //       draggable: true,
+  //       editable: true,
+  //       resizable: true,
+  //       frozen: column.fixed,
+  //       headerRenderer: ColumnHeader,
+  //       formatter: getFormatter(column),
+  //       editor: getEditor(column),
+  //       ...column,
+  //       width: column.width ? (column.width > 380 ? 380 : column.width) : 150,
+  //     }));
+  //   columns.push({
+  //     isNew: true,
+  //     key: "new",
+  //     name: "Add column",
+  //     type: FieldType.last,
+  //     width: 160,
+  //     headerRenderer: FinalColumnHeader,
+  //     cellClass: finalColumnClasses.cell,
+  //     formatter: FinalColumn,
+  //     editable: false,
+  //   });
+  // }
 
   const rowHeight = tableState.config.rowHeight;
 
   const rows = tableState.rows;
-  const rowGetter = (rowIdx: number) => rows[rowIdx];
 
   const inSubTable = collection.split("/").length > 1;
 
@@ -155,59 +227,40 @@ export default function Table({ collection, filters }: ITableProps) {
       />
 
       {!tableState.loadingColumns ? (
-        <DraggableContainer onHeaderDrop={onHeaderDrop}>
-          <DataGrid
-            columns={columns}
-            rowGetter={rowGetter}
-            rowsCount={rows.length}
-            rowKey={"id" as "id"}
-            onGridRowsUpdated={event => {
-              console.log(event);
-              const { action, cellKey, updated } = event;
-              if (action === "CELL_UPDATE")
-                updateCell!(rows[event.toRow].ref, cellKey as string, updated);
-            }}
-            rowHeight={rowHeight}
-            headerRowHeight={44}
-            // TODO: Investigate why setting a numeric value causes
-            // LOADING to pop up on screen when scrolling horizontally
-            // width={windowSize.width - DRAWER_COLLAPSED_WIDTH}
-            minWidth={tableWidth}
-            minHeight={
-              windowSize.height -
-              APP_BAR_HEIGHT * 2 -
-              TABLE_HEADER_HEIGHT -
-              (inSubTable ? BREADCRUMBS_HEIGHT : 0)
-            }
-            // enableCellCopyPaste
-            // enableCellDragAndDrop
-            onColumnResize={tableActions.column.resize}
-            cellNavigationMode={CellNavigationMode.CHANGE_ROW}
-            onCellSelected={({ rowIdx, idx: colIdx }) => {
-              // Prevent selecting final row
-              if (colIdx < columns.length - 1)
-                setSelectedCell!({ row: rowIdx, column: columns[colIdx].key });
-            }}
-            enableCellSelect
-            onScroll={handleScroll}
-            ref={dataGridRef}
-            RowsContainer={props => (
-              <>
-                <div {...props} ref={rowsContainerRef} />
-                <Grid
-                  container
-                  className={classes.loadingContainer}
-                  alignItems="center"
-                  justify="center"
-                >
-                  {tableState.rows.length > 0 && tableState.loadingRows && (
-                    <CircularProgress disableShrink />
-                  )}
-                </Grid>
-              </>
-            )}
-          />
-        </DraggableContainer>
+        <MemoizedDataGrid
+          onHeaderDrop={onHeaderDrop}
+          columns={columns}
+          rowGetter={rowGetter}
+          rowsCount={rows.length}
+          rowKey={"id" as "id"}
+          onGridRowsUpdated={event => {
+            console.log(event);
+            const { action, cellKey, updated } = event;
+            if (action === "CELL_UPDATE")
+              updateCell!(rows[event.toRow].ref, cellKey as string, updated);
+          }}
+          rowHeight={rowHeight}
+          headerRowHeight={44}
+          // TODO: Investigate why setting a numeric value causes
+          // LOADING to pop up on screen when scrolling horizontally
+          // width={windowSize.width - DRAWER_COLLAPSED_WIDTH}
+          minWidth={tableWidth}
+          minHeight={
+            windowSize.height -
+            APP_BAR_HEIGHT * 2 -
+            TABLE_HEADER_HEIGHT -
+            (inSubTable ? BREADCRUMBS_HEIGHT : 0)
+          }
+          // enableCellCopyPaste
+          // enableCellDragAndDrop
+          onColumnResize={tableActions.column.resize}
+          cellNavigationMode={CellNavigationMode.CHANGE_ROW}
+          onCellSelected={({ rowIdx, idx: colIdx }) => {
+          enableCellSelect
+          onScroll={handleScroll}
+          ref={dataGridRef}
+          RowsContainer={RowsContainer as any}
+        />
       ) : (
         <Loading message="Fetching columns" />
       )}
