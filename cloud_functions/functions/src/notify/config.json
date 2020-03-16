@@ -1,0 +1,8 @@
+[
+  {
+    "collectionName": "errorsLogs",
+    "subscription": "errors",
+    "type": "firemail",
+    "templatePath": "emailTemplates/nsDXpYn5b4rymiOLzgDQ"
+  }
+]
